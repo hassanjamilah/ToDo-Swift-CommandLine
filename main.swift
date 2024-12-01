@@ -50,3 +50,11 @@ final class App {
 
 // TODO: Write code to set up and run the app.
 
+print("helllo")
+
+while let x = readLine() {
+    print(x)
+    if x == "exit" {
+        exit(0)
+    }
+}
