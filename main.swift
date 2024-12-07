@@ -8,7 +8,7 @@ struct Todo: Codable, CustomStringConvertible {
     var isCompleted: Bool
     
     var description: String {
-        "The task \(title) is \(isCompleted ? "Completed. 👏" : "not completed yet. 🤦")"
+        "\(title): is \(isCompleted ? "Completed. 👏" : "not completed yet. 🤦")"
     }
 }
 
@@ -25,12 +25,12 @@ protocol Cache {
 // to persist and retrieve the list of todos.
 // Utilize Swift's `FileManager` to handle file operations.
 final class JSONFileManagerCache: Cache {
+    // Get the data file url
     private func fileURL() throws -> URL {
         try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
             .appendingPathExtension("todos.data")
     }
     
-
     func saveTodos(todos: [Todo]) {
         do {
             let data = try JSONEncoder().encode(todos)
@@ -39,7 +39,6 @@ final class JSONFileManagerCache: Cache {
         } catch {
             print("Error in saving the file")
         }
-        
     }
     
     func readTodos() -> [Todo] {
@@ -50,9 +49,7 @@ final class JSONFileManagerCache: Cache {
             }
             let todos = try JSONDecoder().decode([Todo].self, from: data)
             return todos
-
         } catch {
-
             return []
         }
     }
@@ -71,7 +68,6 @@ final class InMemoryCache: Cache {
     func readTodos() -> [Todo] {
         return todos
     }
-        
 }
 
 // The `TodosManager` class should have:
@@ -163,9 +159,9 @@ final class TodoManager: TodoMethodsProtocol {
         print(todos.count == 0 ? "\nYou do not have any ToDos in your list yet. ⁉️\n" : "\n📝 Your ToDo List:")
         for (index, todo) in todos.enumerated() {
             if todo.isCompleted {
-                print("\(index + 1). ✅  \(todo.title)")
+                print("\(index + 1). ✅  \(todo.description)")
             } else {
-                print("\(index + 1). ☑️ \(todo.title)")
+                print("\(index + 1). ☑️ \(todo.description)")
             }
         }
         let numberOfNotCompletedItems = todos.filter({ !$0.isCompleted }).count
@@ -177,10 +173,7 @@ final class TodoManager: TodoMethodsProtocol {
             print("\nLet's keep going and finish our ToDos 😓\n")
         }
     }
-    
-    
 }
-
 
 // * The `App` class should have a `func run()` method, this method should perpetually
 //   await user input and execute commands.
@@ -229,9 +222,7 @@ final class App {
     private var whereToSaveOptions: String {
         "1. Memory\n2. File System\n"
     }
-    
-    
-    
+
     private func executeAdd() {
         printColoredMessage("Enter the ToDo Title: ", color: .green)
         let todoTitle = readLine() ?? ""
@@ -323,7 +314,7 @@ final class App {
 }
 
 
-// TODO: Write code to set up and run the app.
+// Run the application
 let main = App()
 main.run()
 
