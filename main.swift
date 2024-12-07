@@ -91,6 +91,16 @@ final class TodoManager: TodoMethodsProtocol {
     var fileManager: JSONFileManagerCache?
     var inMemoryManager: InMemoryCache?
 
+    var numberOfTodos: Int {
+        var todos = [Todo]()
+        if let fileManager = fileManager {
+            todos =  fileManager.readTodos()
+        } else if let inMemoryManager = inMemoryManager {
+            todos = inMemoryManager.todos
+        }
+        return todos.count
+    }
+    
     func addTodo(todo: Todo) {
         if let fileManager = fileManager {
             var currentTodos =  fileManager.readTodos()
@@ -150,7 +160,7 @@ final class TodoManager: TodoMethodsProtocol {
         } else if let inMemoryManager = inMemoryManager {
             todos = inMemoryManager.todos
         }
-        print(todos.count == 0 ? "You do not have any ToDos in your list yet." : "📝 Your ToDo List:")
+        print(todos.count == 0 ? "\nYou do not have any ToDos in your list yet. ⁉️\n" : "\n📝 Your ToDo List:")
         for (index, todo) in todos.enumerated() {
             if todo.isCompleted {
                 print("\(index + 1). ✅  \(todo.title)")
@@ -160,11 +170,11 @@ final class TodoManager: TodoMethodsProtocol {
         }
         let numberOfNotCompletedItems = todos.filter({ !$0.isCompleted }).count
         if numberOfNotCompletedItems > 3 {
-            print("You have many things todo 🏃‍♂️")
+            print("\nYou have many things todo 🏃‍♂️\n")
         } else if numberOfNotCompletedItems == 0, todos.count > 0 {
-            print("You are hero you did all your ToDos 💯💯")
+            print("\nYou are hero you did all your ToDos 💯💯\n")
         } else if todos.count > 0 {
-            print("Let's keep going and finish our ToDos 😓")
+            print("\nLet's keep going and finish our ToDos 😓\n")
         }
     }
     
@@ -187,26 +197,47 @@ final class App {
         case exit = "5. Exit"
         
         static func printCommands() -> String {
-            return "\n\(self.add.rawValue)\n\(self.list.rawValue)\n\(self.toggle.rawValue)\n\(self.delete.rawValue)\n\(self.exit.rawValue)"
+            return "\(self.add.rawValue)\n\(self.list.rawValue)\n\(self.toggle.rawValue)\n\(self.delete.rawValue)\n\(self.exit.rawValue)"
         }
     }
     
+    // Start Clone from ChatGPT
+    enum ConsoleColor: String {
+        case red = "\u{001B}[31m"
+        case green = "\u{001B}[32m"
+        case yellow = "\u{001B}[33m"
+        case blue = "\u{001B}[34m"
+        case magenta = "\u{001B}[35m"
+        case cyan = "\u{001B}[36m"
+        case white = "\u{001B}[37m"
+        case reset = "\u{001B}[0m"
+    }
+
+    func printColoredMessage(_ text: String, color: ConsoleColor) {
+        print("\(color.rawValue)\(text)\(ConsoleColor.reset.rawValue)")
+    }
+    // End Clone from ChatGPT
+    
     private var inputMessage: String {
-        "Please choose what do you want to do from the following list \(AppCommand.printCommands())"
+        "Please choose what do you want to do from the following list"
     }
     
     private var whereToSaveMessage: String {
-        "Where do you want to save your ToDo list (Enter the number of save option)?\n1. Memory\n2. File System\nEnter number 1 to save in memory and number 2 to save in file system"
+        "Where do you want to save your ToDo list (Enter the number of save option)?"
+    }
+    
+    private var whereToSaveOptions: String {
+        "1. Memory\n2. File System\n"
     }
     
     
     
     private func executeAdd() {
-        print("Enter the ToDo Title: ")
+        printColoredMessage("Enter the ToDo Title: ", color: .green)
         let todoTitle = readLine() ?? ""
         let todo = Todo(title: todoTitle, isCompleted: false)
         todoManager.addTodo(todo: todo)
-        
+        printColoredMessage("Your todo added successfully. 👍", color: .cyan)
     }
     
     private func executeList() {
@@ -214,17 +245,27 @@ final class App {
     }
     
     private func executeToggle() {
-        print("Which ToDo you want to toggle (Enter the number of the ToDo)?")
-        todoManager.listTodos()
-        let input = readLine() ?? ""
-        todoManager.toggleTodo(todoNumber: Int(input) ?? 0)
+        if todoManager.numberOfTodos > 0 {
+            printColoredMessage("Which ToDo you want to toggle (Enter the number of the ToDo)?", color: .green)
+            todoManager.listTodos()
+            let input = readLine() ?? ""
+            todoManager.toggleTodo(todoNumber: Int(input) ?? 0)
+            todoManager.listTodos()
+        } else {
+            todoManager.listTodos()
+        }
     }
     
     private func executeDelete() {
-        print("Which ToDo you want to delete (Enter the number of the ToDo)?")
-        todoManager.listTodos()
-        let input = readLine() ?? ""
-        todoManager.deleteTodo(todoNumber: Int(input) ?? 0)
+        if todoManager.numberOfTodos > 0 {
+            printColoredMessage("Which ToDo you want to delete (Enter the number of the ToDo)?", color: .green)
+            todoManager.listTodos()
+            let input = readLine() ?? ""
+            todoManager.deleteTodo(todoNumber: Int(input) ?? 0)
+            todoManager.listTodos()
+        } else {
+            todoManager.listTodos()
+        }
     }
     
     private func executeExit() {
@@ -232,7 +273,8 @@ final class App {
     }
     
     private func chooseWhereToSave() {
-        print(whereToSaveMessage)
+        printColoredMessage(whereToSaveMessage, color: .green)
+        printColoredMessage(whereToSaveOptions, color: .reset)
         let userInput = readLine()
         switch userInput {
         case "1":
@@ -251,11 +293,15 @@ final class App {
         }
     }
     
+    private func printInputMessage() {
+        printColoredMessage(inputMessage, color: .green)
+        printColoredMessage(AppCommand.printCommands(), color: .reset)
+    }
     
     func run() {
-        
+        printColoredMessage("********* Welcome to Awsome ToDo *********", color: .magenta)
         chooseWhereToSave()
-        print(inputMessage)
+        printInputMessage()
         while let command = readLine()?.lowercased() {
             switch command {
             case "1", "add":
@@ -269,20 +315,15 @@ final class App {
             case "5", "exit":
                 executeExit()
             default:
-                print("Can not understand your command!!")
+                printColoredMessage("Can not understand your command!!", color: .red)
             }
-            print(inputMessage)
+            printInputMessage()
         }
     }
 }
 
 
 // TODO: Write code to set up and run the app.
-let redColor = "\u{001B}[31m"
-let greenColor = "\u{001B}[32m"
-let blackColor = "\u{001B}[0m"
-print("\n" + greenColor + "********* Welcome to Awsome ToDo *********")
-print(blackColor + "")
 let main = App()
 main.run()
 
