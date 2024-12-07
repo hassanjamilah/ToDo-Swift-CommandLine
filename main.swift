@@ -3,7 +3,9 @@ import Foundation
 // * Create the `Todo` struct.
 // * Ensure it has properties: id (UUID), title (String), and isCompleted (Bool).
 struct Todo {
-
+    var  uuid: String = UUID().uuidString
+    var title: String
+    var isCompleted: Bool
 }
 
 // Create the `Cache` protocol that defines the following method signatures:
@@ -33,8 +35,25 @@ final class InMemoryCache: Cache {
 // * A function named `func toggleCompletion(forTodoAtIndex index: Int)` 
 //   to alter the completion status of a specific todo using its index.
 // * A function named `func deleteTodo(atIndex index: Int)` to remove a todo using its index.
-final class TodoManager {
+protocol TodoMethodsProtocol {
+    func addTodo(todo: Todo)
+    func listTodos()
+    func toggleTodo(uuid: String)
+    func deleteTodo(uuid: String)
+}
 
+final class TodoManager {
+    var todos: [Todo]
+    
+    init(todos: [Todo]) {
+        self.todos = todos
+    }
+    
+    func addTodo(todo: Todo) {
+        
+    }
+    
+    
 }
 
 
