@@ -242,9 +242,11 @@ final class App {
             let input = readLine() ?? ""
             todoManager.toggleTodo(todoNumber: Int(input) ?? 0)
             todoManager.listTodos()
+            printColoredMessage("Your todo toggled successfully. 👍", color: .cyan)
         } else {
             todoManager.listTodos()
         }
+        
     }
     
     private func executeDelete() {
@@ -254,6 +256,7 @@ final class App {
             let input = readLine() ?? ""
             todoManager.deleteTodo(todoNumber: Int(input) ?? 0)
             todoManager.listTodos()
+            printColoredMessage("Your todo deleted successfully. 👍", color: .cyan)
         } else {
             todoManager.listTodos()
         }
