@@ -8,9 +8,15 @@ import Foundation
 // * Create the `Todo` struct.
 // * Ensure it has properties: id (UUID), title (String), and isCompleted (Bool).
 struct Todo: Codable, CustomStringConvertible {
-    var uuid: String = UUID().uuidString
+    var uuid: String
     var title: String
     var isCompleted: Bool
+    
+    init(uuid: String = "", title: String = "", isCompleted: Bool = false) {
+        self.uuid = UUID().uuidString
+        self.title = title
+        self.isCompleted = isCompleted
+    }
     
     var description: String {
         "\(title): is \(isCompleted ? "Completed. 👏" : "not completed yet. 🤦")"
@@ -189,7 +195,7 @@ final class App {
     }
     
     private var inputMessage: String {
-        "Please choose what do you want to do from the following list"
+        "Please choose what do you want to do from the following list (Enter the command name or the command number):"
     }
     
     private var whereToSaveMessage: String {
@@ -323,6 +329,8 @@ final class PrintMessage {
 // Run the application
 let main = App(todoManager: TodoManager(cache: InMemoryCache()))
 main.run()
+
+
 
 
 
