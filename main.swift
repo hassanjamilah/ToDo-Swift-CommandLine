@@ -1,5 +1,10 @@
 import Foundation
 
+/*
+ Change the cache implementation
+ Handle the save success errors
+ */
+
 // * Create the `Todo` struct.
 // * Ensure it has properties: id (UUID), title (String), and isCompleted (Bool).
 struct Todo: Codable, CustomStringConvertible {
@@ -16,7 +21,7 @@ struct Todo: Codable, CustomStringConvertible {
 //  `func save(todos: [Todo])`: Persists the given todos.
 //  `func load() -> [Todo]?`: Retrieves and returns the saved todos, or nil if none exist.
 protocol Cache {
-    func saveTodos(todos: [Todo])
+    func saveTodos(todos: [Todo]) -> Bool
     func readTodos() -> [Todo]
 
 }
@@ -31,13 +36,15 @@ final class JSONFileManagerCache: Cache {
             .appendingPathExtension("todos.data")
     }
     
-    func saveTodos(todos: [Todo]) {
+    func saveTodos(todos: [Todo]) -> Bool {
         do {
             let data = try JSONEncoder().encode(todos)
             let outfile = try self.fileURL()
             try data.write(to: outfile)
+            return true
         } catch {
             print("Error in saving the file")
+            return false
         }
     }
     
@@ -61,8 +68,9 @@ final class JSONFileManagerCache: Cache {
 // but serves as a quick in-session cache.
 final class InMemoryCache: Cache {
     var todos: [Todo] = []
-    func saveTodos(todos: [Todo]) {
+    func saveTodos(todos: [Todo]) -> Bool {
         self.todos = todos
+        return true
     }
     
     func readTodos() -> [Todo] {
@@ -84,29 +92,23 @@ protocol TodoMethodsProtocol {
 }
 
 final class TodoManager: TodoMethodsProtocol {
-    var fileManager: JSONFileManagerCache?
-    var inMemoryManager: InMemoryCache?
+
+    var cache: Cache
+    
+    init(cache: Cache) {
+        self.cache = cache
+    }
 
     var numberOfTodos: Int {
-        var todos = [Todo]()
-        if let fileManager = fileManager {
-            todos =  fileManager.readTodos()
-        } else if let inMemoryManager = inMemoryManager {
-            todos = inMemoryManager.todos
-        }
+        let todos = cache.readTodos()
         return todos.count
     }
     
     func addTodo(todo: Todo) {
-        if let fileManager = fileManager {
-            var currentTodos =  fileManager.readTodos()
-            currentTodos.append(todo)
-            fileManager.saveTodos(todos: currentTodos)
-        } else if let inMemoryManager = inMemoryManager {
-            var currentTodos = inMemoryManager.todos
-            currentTodos.append(todo)
-            inMemoryManager.todos = currentTodos
-        }
+        var currentTodos =  cache.readTodos()
+        currentTodos.append(todo)
+        let result = cache.saveTodos(todos: currentTodos)
+        PrintMessage.printSuccessOrFailMessage(result: result)
     }
     
     func deleteTodo(todoNumber: Int?) {
@@ -115,17 +117,11 @@ final class TodoManager: TodoMethodsProtocol {
         }
         
         let index = todoNumber - 1
-         
-        if let fileManager = fileManager {
-            var currentTodos =  fileManager.readTodos()
-            if index < currentTodos.count {
-                currentTodos.remove(at: index)
-                fileManager.saveTodos(todos: currentTodos)
-            }
-        } else if let inMemoryManager = inMemoryManager {
-            var currentTodos = inMemoryManager.todos
+        var currentTodos =  cache.readTodos()
+        if index < currentTodos.count {
             currentTodos.remove(at: index)
-            inMemoryManager.saveTodos(todos: currentTodos)
+            let result = cache.saveTodos(todos: currentTodos)
+            PrintMessage.printSuccessOrFailMessage(result: result)
         }
     }
     
@@ -136,26 +132,17 @@ final class TodoManager: TodoMethodsProtocol {
         
         let index = todoNumber - 1
          
-        if let fileManager = fileManager {
-            var currentTodos =  fileManager.readTodos()
-            if index < currentTodos.count {
-                currentTodos[index].isCompleted = true
-                fileManager.saveTodos(todos: currentTodos)
-            }
-        } else if let inMemoryManager = inMemoryManager {
-            var currentTodos = inMemoryManager.todos
+        var currentTodos =  cache.readTodos()
+        if index < currentTodos.count {
             currentTodos[index].isCompleted = true
-            inMemoryManager.saveTodos(todos: currentTodos)
+            let result = cache.saveTodos(todos: currentTodos)
+            PrintMessage.printSuccessOrFailMessage(result: result)
         }
     }
     
     func listTodos() {
-        var todos = [Todo]()
-        if let fileManager = fileManager {
-            todos =  fileManager.readTodos()
-        } else if let inMemoryManager = inMemoryManager {
-            todos = inMemoryManager.todos
-        }
+        let todos = cache.readTodos()
+
         print(todos.count == 0 ? "\nYou do not have any ToDos in your list yet. ⁉️\n" : "\n📝 Your ToDo List:")
         for (index, todo) in todos.enumerated() {
             if todo.isCompleted {
@@ -173,6 +160,8 @@ final class TodoManager: TodoMethodsProtocol {
             print("\nLet's keep going and finish our ToDos 😓\n")
         }
     }
+    
+    
 }
 
 // * The `App` class should have a `func run()` method, this method should perpetually
@@ -181,7 +170,12 @@ final class TodoManager: TodoMethodsProtocol {
 //    such as `add`, `list`, `toggle`, `delete`, and `exit`.
 //  * The enum should be nested inside the definition of the `App` class
 final class App {
-    var todoManager = TodoManager()
+    var todoManager: TodoManager
+    
+    init(todoManager: TodoManager) {
+        self.todoManager = todoManager
+    }
+    
     enum AppCommand: String {
         case add = "1. Add"
         case list = "2. List"
@@ -193,23 +187,6 @@ final class App {
             return "\(self.add.rawValue)\n\(self.list.rawValue)\n\(self.toggle.rawValue)\n\(self.delete.rawValue)\n\(self.exit.rawValue)"
         }
     }
-    
-    // Start Clone from ChatGPT
-    enum ConsoleColor: String {
-        case red = "\u{001B}[31m"
-        case green = "\u{001B}[32m"
-        case yellow = "\u{001B}[33m"
-        case blue = "\u{001B}[34m"
-        case magenta = "\u{001B}[35m"
-        case cyan = "\u{001B}[36m"
-        case white = "\u{001B}[37m"
-        case reset = "\u{001B}[0m"
-    }
-
-    func printColoredMessage(_ text: String, color: ConsoleColor) {
-        print("\(color.rawValue)\(text)\(ConsoleColor.reset.rawValue)")
-    }
-    // End Clone from ChatGPT
     
     private var inputMessage: String {
         "Please choose what do you want to do from the following list"
@@ -224,11 +201,11 @@ final class App {
     }
 
     private func executeAdd() {
-        printColoredMessage("Enter the ToDo Title: ", color: .green)
+        PrintMessage.printColoredMessage("Enter the ToDo Title: ", color: .green)
         let todoTitle = readLine() ?? ""
         let todo = Todo(title: todoTitle, isCompleted: false)
         todoManager.addTodo(todo: todo)
-        printColoredMessage("Your todo added successfully. 👍", color: .cyan)
+        PrintMessage.printColoredMessage("Your todo added successfully. 👍", color: .cyan)
     }
     
     private func executeList() {
@@ -237,12 +214,12 @@ final class App {
     
     private func executeToggle() {
         if todoManager.numberOfTodos > 0 {
-            printColoredMessage("Which ToDo you want to toggle (Enter the number of the ToDo)?", color: .green)
+            PrintMessage.printColoredMessage("Which ToDo you want to toggle (Enter the number of the ToDo)?", color: .green)
             todoManager.listTodos()
             let input = readLine() ?? ""
             todoManager.toggleTodo(todoNumber: Int(input) ?? 0)
             todoManager.listTodos()
-            printColoredMessage("Your todo toggled successfully. 👍", color: .cyan)
+            PrintMessage.printColoredMessage("Your todo toggled successfully. 👍", color: .cyan)
         } else {
             todoManager.listTodos()
         }
@@ -251,12 +228,12 @@ final class App {
     
     private func executeDelete() {
         if todoManager.numberOfTodos > 0 {
-            printColoredMessage("Which ToDo you want to delete (Enter the number of the ToDo)?", color: .green)
+            PrintMessage.printColoredMessage("Which ToDo you want to delete (Enter the number of the ToDo)?", color: .green)
             todoManager.listTodos()
             let input = readLine() ?? ""
             todoManager.deleteTodo(todoNumber: Int(input) ?? 0)
             todoManager.listTodos()
-            printColoredMessage("Your todo deleted successfully. 👍", color: .cyan)
+            PrintMessage.printColoredMessage("Your todo deleted successfully. 👍", color: .cyan)
         } else {
             todoManager.listTodos()
         }
@@ -267,14 +244,14 @@ final class App {
     }
     
     private func chooseWhereToSave() {
-        printColoredMessage(whereToSaveMessage, color: .green)
-        printColoredMessage(whereToSaveOptions, color: .reset)
+        PrintMessage.printColoredMessage(whereToSaveMessage, color: .green)
+        PrintMessage.printColoredMessage(whereToSaveOptions, color: .reset)
         let userInput = readLine()
         switch userInput {
         case "1":
-            todoManager.inMemoryManager = InMemoryCache()
+            todoManager = TodoManager(cache: InMemoryCache())
         case "2":
-            todoManager.fileManager = JSONFileManagerCache()
+            todoManager = TodoManager(cache: JSONFileManagerCache())
         default:
             print("Can not understand your choice, Do you want to continue (y/n)?")
             let yesNoInput = readLine()
@@ -288,12 +265,12 @@ final class App {
     }
     
     private func printInputMessage() {
-        printColoredMessage(inputMessage, color: .green)
-        printColoredMessage(AppCommand.printCommands(), color: .reset)
+        PrintMessage.printColoredMessage(inputMessage, color: .green)
+        PrintMessage.printColoredMessage(AppCommand.printCommands(), color: .reset)
     }
     
     func run() {
-        printColoredMessage("********* Welcome to Awsome ToDo *********", color: .magenta)
+        PrintMessage.printColoredMessage("********* Welcome to Awsome ToDo *********", color: .magenta)
         chooseWhereToSave()
         printInputMessage()
         while let command = readLine()?.lowercased() {
@@ -309,17 +286,47 @@ final class App {
             case "5", "exit":
                 executeExit()
             default:
-                printColoredMessage("Can not understand your command!!", color: .red)
+                PrintMessage.printColoredMessage("Can not understand your command!!", color: .red)
             }
             printInputMessage()
         }
     }
 }
 
+final class PrintMessage {
+    enum ConsoleColor: String {
+        case red = "\u{001B}[31m"
+        case green = "\u{001B}[32m"
+        case yellow = "\u{001B}[33m"
+        case blue = "\u{001B}[34m"
+        case magenta = "\u{001B}[35m"
+        case cyan = "\u{001B}[36m"
+        case white = "\u{001B}[37m"
+        case reset = "\u{001B}[0m"
+    }
+    
+    static func printColoredMessage(_ text: String, color: ConsoleColor) {
+        print("\(color.rawValue)\(text)\(ConsoleColor.reset.rawValue)")
+    }
+    
+    static func printSuccessOrFailMessage(result: Bool) {
+        if result {
+            PrintMessage.printColoredMessage("Your ToDo was saved successfully. 👏", color: .cyan)
+        } else {
+            PrintMessage.printColoredMessage("Error in savig your ToDo. 😢", color: .red)
+        }
+    }
+}
+
+
 
 // Run the application
-let main = App()
+let main = App(todoManager: TodoManager(cache: InMemoryCache()))
 main.run()
+
+
+
+
 
 
 
